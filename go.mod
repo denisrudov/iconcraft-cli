@@ -1,4 +1,4 @@
-module go1
+module github.com/denisrudov/iconcraft-cli
 
 go 1.23
 

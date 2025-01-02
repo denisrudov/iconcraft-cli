@@ -2,14 +2,17 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/manifoldco/promptui"
 	"strings"
 	"time"
 )
 
+var version = "dev"
+
 func main() {
 
-	println(`Welcome to IconCraft CLI - Your Go-To Tool for Lucide Icons!  
+	println(fmt.Sprintf(`Welcome to IconCraft CLI (v.%s) - Your Go-To Tool for Lucide Icons!  
 Effortlessly search and explore a vast database of icons from [Lucide](https://lucide.dev/).  
 
 📂 **Features:**  
@@ -22,7 +25,7 @@ Effortlessly search and explore a vast database of icons from [Lucide](https://l
   - Vue  
   - Svelte  
 
-Start now and supercharge your workflow with the perfect icon for your project!`)
+Start now and supercharge your workflow with the perfect icon for your project!`, version))
 
 begin:
 	for {
