@@ -3,17 +3,39 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/manifoldco/promptui"
 	"strings"
 	"time"
+
+	"github.com/manifoldco/promptui"
 )
 
 var version = "dev"
 
 func main() {
+	displayWelcomeMessage()
 
-	println(fmt.Sprintf(`Welcome to IconCraft CLI (v.%s) - Your Go-To Tool for Lucide Icons!  
-Effortlessly search and explore a vast database of icons from [Lucide](https://lucide.dev/).  
+	for {
+		iconName := getUserInput("Search Icon")
+		if iconName == "" {
+			return
+		}
+
+		search := NewSearch()
+		icons := search.Perform(iconName)
+
+		if len(icons) == 0 {
+			fmt.Println("No icons found. Try again.")
+			continue
+		}
+
+		handleIconSelection(icons)
+	}
+}
+
+func displayWelcomeMessage() {
+	fmt.Printf(`Welcome to IconCraft CLI (v.%s) - Your Go-To Tool for Lucide Icons!
+
+Effortlessly search and explore a vast database of icons from [Lucide](https://lucide.dev/).
 
 📂 **Features:**  
 - 🔍 **Search:** Quickly find icons by name or keyword.  
@@ -25,74 +47,79 @@ Effortlessly search and explore a vast database of icons from [Lucide](https://l
   - Vue  
   - Svelte  
 
-Start now and supercharge your workflow with the perfect icon for your project!`, version))
+Start now and supercharge your workflow with the perfect icon for your project!
+`, version)
+}
 
-begin:
+func getUserInput(label string) string {
+	prompt := promptui.Prompt{
+		Label: label,
+	}
+
+	result, err := prompt.Run()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(result)
+}
+
+func handleIconSelection(icons []*Icon) {
+	iconNames := extractIconNames(icons)
+
 	for {
-		//ClearConsole()
-		prompt := promptui.Prompt{
-			Label: "Select Icon",
-		}
-
-		result, err := prompt.Run()
+		selectedIndex, _, err := promptSelection("Select Icon", iconNames)
 		if err != nil {
 			return
 		}
 
-		if len(strings.TrimSpace(result)) == 0 {
+		selectedIcon := icons[selectedIndex]
+		selectedIcon.RenderInConsole()
+
+		action, err := promptUserAction()
+		if err != nil {
 			continue
 		}
 
-		search := NewSearch()
-		icons := search.Perform(result)
-
-		if len(icons) > 0 {
-			var items []string
-			// items = append(items, "←")
-			for _, icon := range icons {
-				items = append(items, icon.Name)
-			}
-			for {
-				sPrompt := promptui.Select{
-					Label: "Select Icon",
-					Items: items,
-				}
-				selectedIndex, _, err := sPrompt.Run()
-				if err != nil {
-					return
-				}
-
-				icon := icons[selectedIndex]
-				icon.RenderInConsole()
-
-				sPrompt = promptui.Select{
-					Label: "Copy in Clipboard",
-					Items: IconActions,
-				}
-
-				_, s, err := sPrompt.Run()
-
-				if errors.Is(err, promptui.ErrInterrupt) {
-					continue
-				}
-
-				code := icon.GetAction(s)()
-
-				err = copyToClipboard(code)
-				if err != nil {
-					println("failed to copy to clipboard")
-				} else {
-					println("Copied to clipboard...	")
-				}
-
-				time.Sleep(time.Second * 2)
-
-				goto begin
-
-			}
-
-		}
-
+		handleIconAction(selectedIcon, action)
+		time.Sleep(2 * time.Second)
 	}
+}
 
+func extractIconNames(icons []*Icon) []string {
+	names := make([]string, len(icons))
+	for i, icon := range icons {
+		names[i] = icon.Name
+	}
+	return names
+}
+
+func promptSelection(label string, items []string) (int, string, error) {
+	prompt := promptui.Select{
+		Label: label,
+		Items: items,
+	}
+	return prompt.Run()
+}
+
+func promptUserAction() (string, error) {
+	prompt := promptui.Select{
+		Label: "Copy in Clipboard",
+		Items: IconActions,
+	}
+	_, action, err := prompt.Run()
+	if errors.Is(err, promptui.ErrInterrupt) {
+		return "", err
+	}
+	return action, nil
+}
+
+func handleIconAction(icon *Icon, action string) {
+	code := icon.GetAction(action)()
+
+	if err := copyToClipboard(code); err != nil {
+		fmt.Println("Failed to copy to clipboard.")
+	} else {
+		fmt.Println("Copied to clipboard!")
+	}
 }
