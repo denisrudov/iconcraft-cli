@@ -1,23 +1,32 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
+	"errors"
 	"github.com/manifoldco/promptui"
-	"github.com/srwiley/oksvg"
-	"github.com/srwiley/rasterx"
-	"image"
-	"image/color"
-	"image/png"
-	"os"
-	"os/exec"
-	"runtime"
+	"strings"
+	"time"
 )
 
 func main() {
 
+	println(`Welcome to IconCraft CLI - Your Go-To Tool for Lucide Icons!  
+Effortlessly search and explore a vast database of icons from [Lucide](https://lucide.dev/).  
+
+📂 **Features:**  
+- 🔍 **Search:** Quickly find icons by name or keyword.  
+- 📜 **Explore:** View the names of matching icons in an easy-to-read list.  
+- 📋 **Export:** Copy your chosen icon's code in your preferred framework:  
+  - JSX  
+  - React  
+  - Angular  
+  - Vue  
+  - Svelte  
+
+Start now and supercharge your workflow with the perfect icon for your project!`)
+
+begin:
 	for {
-		clearConsole()
+		//ClearConsole()
 		prompt := promptui.Prompt{
 			Label: "Select Icon",
 		}
@@ -27,129 +36,60 @@ func main() {
 			return
 		}
 
+		if len(strings.TrimSpace(result)) == 0 {
+			continue
+		}
+
 		search := NewSearch()
 		icons := search.Perform(result)
 
 		if len(icons) > 0 {
 			var items []string
+			// items = append(items, "←")
 			for _, icon := range icons {
 				items = append(items, icon.Name)
 			}
-			sPrompt := promptui.Select{
-				Label: "Select Icon",
-				Items: items,
+			for {
+				sPrompt := promptui.Select{
+					Label: "Select Icon",
+					Items: items,
+				}
+				selectedIndex, _, err := sPrompt.Run()
+				if err != nil {
+					return
+				}
+
+				icon := icons[selectedIndex]
+				icon.RenderInConsole()
+
+				sPrompt = promptui.Select{
+					Label: "Copy in Clipboard",
+					Items: IconActions,
+				}
+
+				_, s, err := sPrompt.Run()
+
+				if errors.Is(err, promptui.ErrInterrupt) {
+					continue
+				}
+
+				code := icon.GetAction(s)()
+
+				err = copyToClipboard(code)
+				if err != nil {
+					println("failed to copy to clipboard")
+				} else {
+					println("Copied to clipboard...	")
+				}
+
+				time.Sleep(time.Second * 2)
+
+				goto begin
+
 			}
-			selectedIndex, _, err := sPrompt.Run()
-			if err != nil {
-				fmt.Printf("Prompt failed %v\n", err)
-				return
-			}
-			println(selectedIndex)
 
 		}
 
 	}
 
-	/*search := NewSearch()
-	icons := search.Perform("user")
-
-	if len(icons) > 0 {
-		icon := icons[0]
-		svgString := strings.ReplaceAll(icon.Svg, "currentColor", "#FFFFFF")
-		toImage, err := renderSVGToImage([]byte(svgString), 40, 40)
-		if err != nil {
-			log.Fatal(err)
-		}
-		renderInConsole(toImage)
-	}*/
-
-}
-
-func clearConsole() {
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/c", "cls")
-	} else {
-		cmd = exec.Command("clear")
-	}
-	cmd.Stdout = os.Stdout
-	cmd.Run()
-}
-
-func renderSVGToImage(svgSource []byte, width, height int) (image.Image, error) {
-	// Create a reader for the SVG source
-	reader := bytes.NewReader(svgSource)
-
-	// Read the SVG icon
-	icon, err := oksvg.ReadIconStream(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse SVG: %v", err)
-	}
-
-	// Set the rendering dimensions
-	icon.SetTarget(0, 0, float64(width), float64(height))
-
-	// Create an RGBA image to render the SVG onto
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-
-	// Create a rasterizer
-	scanner := rasterx.NewScannerGV(width, height, img, img.Bounds())
-	raster := rasterx.NewDasher(width, height, scanner)
-	raster.SetColor(color.Black)
-
-	// Render the SVG onto the image
-	icon.Draw(raster, 1.0)
-
-	return img, nil
-}
-
-func saveImageAsPNG(img image.Image, filename string) error {
-	file, err := os.Create(filename)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
-	}
-	defer file.Close()
-
-	err = png.Encode(file, img)
-	if err != nil {
-		return fmt.Errorf("failed to encode PNG: %v", err)
-	}
-
-	return nil
-}
-
-func renderInConsole(img image.Image) {
-	bounds := img.Bounds()
-
-	for y := bounds.Min.Y; y < bounds.Max.Y; y += 2 { // Process two rows at a time
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			// Get the top pixel color
-			topColor := img.At(x, y)
-			r1, g1, b1, _ := topColor.RGBA()
-
-			// Get the bottom pixel color (or use black if out of bounds)
-			var r2, g2, b2 uint32
-			if y+1 < bounds.Max.Y {
-				bottomColor := img.At(x, y+1)
-				r2, g2, b2, _ = bottomColor.RGBA()
-			}
-
-			// Convert colors to ANSI escape codes
-			topANSI := getANSIColor(r1, g1, b1)
-			bottomANSI := getANSIColor(r2, g2, b2)
-
-			// Print the combined character using "▀" (upper half block)
-			fmt.Printf("\x1b[%sm\x1b[%sm▀", bottomANSI, topANSI)
-		}
-		fmt.Println("\x1b[0m") // Reset ANSI colors at the end of the line
-	}
-}
-
-// Helper function to convert RGB to ANSI color codes
-func getANSIColor(r, g, b uint32) string {
-	brightness := (r + g + b) / 3
-	if brightness > 0xFFFF/2 {
-		return "37" // White
-	}
-	return "30" // Black
 }
