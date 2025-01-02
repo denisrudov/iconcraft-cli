@@ -15,6 +15,6 @@ type Icon struct {
 }
 
 func NewIcon(id int, name string, svg string, schema *IconSchema) *Icon {
-	return &Icon{Id: id, Name: name, Svg: svg, Schema: schema}
+	return &Icon{Id: id, Name: camelCaseFromDash(name), Svg: svg, Schema: schema}
 
 }

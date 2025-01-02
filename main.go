@@ -3,18 +3,54 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/manifoldco/promptui"
 	"github.com/srwiley/oksvg"
 	"github.com/srwiley/rasterx"
 	"image"
 	"image/color"
 	"image/png"
-	"log"
 	"os"
-	"strings"
+	"os/exec"
+	"runtime"
 )
 
 func main() {
-	search := NewSearch()
+
+	for {
+		clearConsole()
+		prompt := promptui.Prompt{
+			Label: "Select Icon",
+		}
+
+		result, err := prompt.Run()
+		if err != nil {
+			return
+		}
+
+		search := NewSearch()
+		icons := search.Perform(result)
+
+		if len(icons) > 0 {
+			var items []string
+			for _, icon := range icons {
+				items = append(items, icon.Name)
+			}
+			sPrompt := promptui.Select{
+				Label: "Select Icon",
+				Items: items,
+			}
+			selectedIndex, _, err := sPrompt.Run()
+			if err != nil {
+				fmt.Printf("Prompt failed %v\n", err)
+				return
+			}
+			println(selectedIndex)
+
+		}
+
+	}
+
+	/*search := NewSearch()
 	icons := search.Perform("user")
 
 	if len(icons) > 0 {
@@ -25,8 +61,19 @@ func main() {
 			log.Fatal(err)
 		}
 		renderInConsole(toImage)
-	}
+	}*/
 
+}
+
+func clearConsole() {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/c", "cls")
+	} else {
+		cmd = exec.Command("clear")
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Run()
 }
 
 func renderSVGToImage(svgSource []byte, width, height int) (image.Image, error) {
