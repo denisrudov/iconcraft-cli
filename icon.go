@@ -58,6 +58,15 @@ func (i *Icon) GetAngular() string {
 	return fmt.Sprintf(`<lucide-icon name="%s"></lucide-icon>`, i.Filename)
 }
 
+func (i *Icon) matches(searchString string) bool {
+	for _, tag := range i.Schema.Tags {
+		if strings.Contains(tag, searchString) {
+			return true
+		}
+	}
+	return false
+}
+
 func NewIcon(id int, name string, svg string, schema *IconSchema) *Icon {
 	return &Icon{Id: id, Name: camelCaseFromDash(name), Filename: name, Svg: svg, Schema: schema}
 

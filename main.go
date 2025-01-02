@@ -48,6 +48,7 @@ Effortlessly search and explore a vast database of icons from [Lucide](https://l
   - Svelte  
 
 Start now and supercharge your workflow with the perfect icon for your project!
+Ctrl-c Back / Exit
 `, version)
 }
 

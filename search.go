@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"log"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,51 +13,62 @@ var iconsPath embed.FS
 
 type Search struct {
 	icons []*Icon
-	path  embed.FS
 }
 
-func (s *Search) Perform(searchString string) (icons []*Icon) {
-	icons = make([]*Icon, 0)
+func NewSearch() *Search {
+	icons, err := initializeIcons()
+	if err != nil {
+		log.Fatalf("Failed to initialize icons: %v", err)
+	}
+	return &Search{icons: icons}
+}
 
+func (s *Search) Perform(searchString string) []*Icon {
+	var matchedIcons []*Icon
 	for _, icon := range s.icons {
-		for _, tag := range icon.Schema.Tags {
-			if strings.Contains(tag, searchString) {
+		if icon.matches(searchString) {
+			matchedIcons = append(matchedIcons, icon)
+		}
+	}
+	return matchedIcons
+}
+
+func initializeIcons() ([]*Icon, error) {
+	dirEntries, err := iconsPath.ReadDir("icons")
+	if err != nil {
+		return nil, err
+	}
+
+	var icons []*Icon
+	id := 0
+	for _, entry := range dirEntries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".json" {
+			icon, err := loadIcon(id+1, entry.Name())
+			if err == nil {
 				icons = append(icons, icon)
 			}
 		}
 	}
-	return
+
+	return icons, nil
 }
 
-func NewSearch() *Search {
-	return &Search{path: iconsPath, icons: initializeIcons()}
-}
-
-func initializeIcons() (icons []*Icon) {
-	icons = make([]*Icon, 0)
-
-	dir, err := iconsPath.ReadDir("icons")
+func loadIcon(id int, jsonFileName string) (*Icon, error) {
+	baseName := strings.TrimSuffix(jsonFileName, filepath.Ext(jsonFileName))
+	schemaData, err := iconsPath.ReadFile(filepath.Join("icons", jsonFileName))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	for id, d := range dir {
-		fileSplit := strings.Split(d.Name(), ".")
-		extension := fileSplit[1]
-		if extension == "json" {
-			jsonFile, err := iconsPath.ReadFile("icons/" + d.Name())
-			svgFile, svgErr := iconsPath.ReadFile("icons/" + fileSplit[0] + ".svg")
-			if err != nil || svgErr != nil {
-				continue
-			}
-			var schema *IconSchema
-			err = json.Unmarshal(jsonFile, &schema)
-			if err != nil {
-				continue
-			}
-			icons = append(icons, NewIcon(id, fileSplit[0], string(svgFile), schema))
-		}
+	svgData, err := iconsPath.ReadFile(filepath.Join("icons", baseName+".svg"))
+	if err != nil {
+		return nil, err
 	}
 
-	return
+	var schema *IconSchema
+	if err := json.Unmarshal(schemaData, &schema); err != nil {
+		return nil, err
+	}
+
+	return NewIcon(id, baseName, string(svgData), schema), nil
 }
