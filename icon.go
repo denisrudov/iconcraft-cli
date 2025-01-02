@@ -58,7 +58,7 @@ func (i *Icon) GetAngular() string {
 	return fmt.Sprintf(`<lucide-icon name="%s"></lucide-icon>`, i.Filename)
 }
 
-func (i *Icon) matches(searchString string) bool {
+func (i *Icon) Matches(searchString string) bool {
 	for _, tag := range i.Schema.Tags {
 		if strings.Contains(tag, searchString) {
 			return true

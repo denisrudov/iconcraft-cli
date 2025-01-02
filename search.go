@@ -26,7 +26,7 @@ func NewSearch() *Search {
 func (s *Search) Perform(searchString string) []*Icon {
 	var matchedIcons []*Icon
 	for _, icon := range s.icons {
-		if icon.matches(searchString) {
+		if icon.Matches(searchString) {
 			matchedIcons = append(matchedIcons, icon)
 		}
 	}
