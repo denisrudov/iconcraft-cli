@@ -2,13 +2,12 @@ package main
 
 import (
 	"embed"
-	"fmt"
-	"io/fs"
+	"encoding/json"
 	"log"
 	"strings"
 )
 
-//go:embed iconsPath/*
+//go:embed icons/*
 var iconsPath embed.FS
 
 type Search struct {
@@ -16,22 +15,17 @@ type Search struct {
 	path  embed.FS
 }
 
-func (s *Search) Perform(s2 string) {
+func (s *Search) Perform(searchString string) (icons []*Icon) {
+	icons = make([]*Icon, 0)
 
-	dir, err := s.path.ReadDir("iconsPath")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var found []fs.FileInfo
-
-	for _, d := range dir {
-		extension := strings.Split(d.Name(), ".")[1]
-		if extension == "json" {
-			found = append(found, d.(fs.FileInfo))
-			fmt.Println(extension, d.Name())
+	for _, icon := range s.icons {
+		for _, tag := range icon.Schema.Tags {
+			if strings.Contains(tag, searchString) {
+				icons = append(icons, icon)
+			}
 		}
 	}
+	return
 }
 
 func NewSearch() *Search {
@@ -46,12 +40,21 @@ func initializeIcons() (icons []*Icon) {
 		log.Fatal(err)
 	}
 
-	for _, d := range dir {
-		extension := strings.Split(d.Name(), ".")[1]
+	for id, d := range dir {
+		fileSplit := strings.Split(d.Name(), ".")
+		extension := fileSplit[1]
 		if extension == "json" {
-
-			//found = append(found, d.(fs.FileInfo))
-			//fmt.Println(extension, d.Name())
+			jsonFile, err := iconsPath.ReadFile("icons/" + d.Name())
+			svgFile, svgErr := iconsPath.ReadFile("icons/" + fileSplit[0] + ".svg")
+			if err != nil || svgErr != nil {
+				continue
+			}
+			var schema *IconSchema
+			err = json.Unmarshal(jsonFile, &schema)
+			if err != nil {
+				continue
+			}
+			icons = append(icons, NewIcon(id, fileSplit[0], string(svgFile), schema))
 		}
 	}
 
